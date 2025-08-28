@@ -5,7 +5,7 @@ from ctransformers import AutoModelForCausalLM
 # Configuration
 MODEL_PATH = "Triangle104/SmolLM2-360M-Q4_K_M-GGUF"  # Replace with local path if downloaded
 MCP_SERVERS = {
-    "playwright": "http://localhost:65432",  # Default Playwright MCP port
+    "playwright": "http://localhost:8931",  # Default Playwright MCP port
     "sequential_thinking": "http://localhost:8081",
     "memory": "http://localhost:8082",
     "task_orchestrator": "http://localhost:8083",

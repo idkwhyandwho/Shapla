@@ -29,7 +29,7 @@ services:
     environment:
       - DISPLAY=:99
     ports:
-      - "9222:9222"  # Chrome DevTools Protocol port
+      - "65432:80"  # Expose Playwright MCP on port 65432
 
   # Shapla API Service
   shapla-api:
