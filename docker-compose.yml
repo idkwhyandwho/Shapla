@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector for RAG/embeddings storage
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: shapla_db
+      POSTGRES_USER: shapla_user
+      POSTGRES_PASSWORD: shapla_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shapla_user -d shapla_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Playwright MCP Server for web automation
+  playwright-mcp:
+    image: mcp/playwright
+    container_name: shapla-playwright
+    restart: unless-stopped
+    volumes:
+      - /tmp:/tmp  # For screenshot storage
+    environment:
+      - DISPLAY=:99
+    ports:
+      - "9222:9222"  # Chrome DevTools Protocol port
+
+  # Shapla API Service
+  shapla-api:
+    build: .
+    environment:
+      # SmolLM2 endpoint (adjust based on your Docker Model Runner setup)
+      OPENAI_BASE_URL: "http://host.docker.internal:12434/engines/llama.cpp/v1"
+      OPENAI_API_KEY: "local-dev-key"
+      SHAPLA_MODEL: "ai/smollm2"
+
+      # Database configuration
+      DATABASE_URL: "postgresql://shapla_user:shapla_pass@postgres:5432/shapla_db"
+
+      # Playwright configuration
+      PLAYWRIGHT_CONTAINER: "shapla-playwright"
+
+      # App configuration
+      ENVIRONMENT: "development"
+      LOG_LEVEL: "info"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      playwright-mcp:
+        condition: service_started
+    volumes:
+      - ./logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker communication
+    restart: unless-stopped
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Optional: Nginx for reverse proxy and static file serving
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - shapla-api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
